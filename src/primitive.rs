@@ -14,13 +14,6 @@ pub struct HitRecord {
     pub front_face: bool,
 }
 
-impl HitRecord {
-    fn set_face_normal(&mut self, r: &Ray, &outward_normal: &Vec3) {
-        self.front_face = r.direction().dot(&outward_normal) < 0.0;
-        self.normal = if self.front_face { outward_normal } else { -outward_normal }
-    }
-}
-
 pub trait Hittable {
     fn hit(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord>;
 }
@@ -54,27 +47,27 @@ impl Hittable for Sphere {
         }
 
         let sqrtd = discriminant.sqrt();
-        let root = (h - sqrtd) / a;
+        let mut root = (h - sqrtd) / a;
         if !ray_t.surrounds(root) {
-            let root = (h + sqrtd) / a;
+            root = (h + sqrtd) / a;
             if !ray_t.surrounds(root) {
                 return None;
             }
         }
         let t = root;
         let p = r.at(t);
-        let normal = (p - self.center) / self.radius;
+        let normal = (p - self.center).unit_vector();
+        let front_face = r.direction().dot(&normal) < 0.0;
+        let normal = if front_face { normal } else { -normal };
         let mat = self.mat.clone();
 
-        let mut rec = HitRecord {
+        Some(HitRecord {
             t,
             p,
             normal,
             mat,
-            front_face: true,
-        };
-        rec.set_face_normal(r, &normal);
-        Some(rec)
+            front_face,
+        })
     }
 }
 

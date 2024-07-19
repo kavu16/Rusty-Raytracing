@@ -1,4 +1,4 @@
-use crate::{color::Color, primitive::HitRecord, ray::Ray, vec3::Vec3};
+use crate::{color::Color, primitive::HitRecord, ray::Ray, utils::random_double, vec3::Vec3};
 
 #[derive(Clone, Copy, Debug)]
 pub enum Material {
@@ -34,10 +34,23 @@ impl Material {
                 let attenuation = Color::new(1.0, 1.0, 1.0);
                 let ri = if rec.front_face { 1.0 / refraction_index } else { *refraction_index };
 
-                let unit_direction = Vec3::unit_vector(&r_in.direction());
-                let refracted = unit_direction.refract(&rec.normal, ri);
+                let unit_d = r_in.direction().unit_vector();
+                let cos_theta = (-unit_d).dot(&rec.normal).min(1.0);
+                let sin_theta = (1.0 - cos_theta * cos_theta).sqrt();
 
-                Some((Ray::new(&rec.p, &refracted), attenuation))
+                let reflectance = {
+                    let r0 = (1.0 - ri) /  (1.0 + ri);
+                    let r0 = r0*r0;
+                    r0 + (1.0 - r0)*(1.0-cos_theta).powf(5.0)
+                };
+
+                let direction = if ri * sin_theta > 1.0 || reflectance > random_double() {
+                    unit_d.reflect(&rec.normal)
+                } else {
+                    unit_d.refract(&rec.normal, ri)
+                };
+
+                Some((Ray::new(&rec.p, &direction), attenuation))
             }
         }
     }

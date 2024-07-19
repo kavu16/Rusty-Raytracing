@@ -87,6 +87,7 @@ impl Camera {
         println!("P3\n{} {}\n255\n", self.image_width, self.image_height);
 
         for j in 0..self.image_height {
+            eprint!("\rScanlines remaining: {}    ", self.image_height - j);
             for i in 0..self.image_width {
                 let mut pixel_color = Color::new(0.0, 0.0, 0.0);
                 for _sample in 0..self.samples_per_pixel {
@@ -96,5 +97,6 @@ impl Camera {
                 Color::write_color(self.pixel_samples_scale * pixel_color);
             }
         }
+        eprint!("\rDone.                    \n");
     }
 }

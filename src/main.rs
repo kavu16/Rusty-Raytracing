@@ -19,6 +19,9 @@ fn main() {
     let material_left = Rc::new(Material::Dielectric {
         refraction_index: 1.50,
     });
+    let material_bubble = Rc::new(Material::Dielectric { 
+        refraction_index: 1.00 / 1.50, 
+    });
     let material_right = Rc::new(Material::Metal {
         albedo: Color::new(0.8, 0.6, 0.2),
         fuzz: 1.0,
@@ -38,6 +41,11 @@ fn main() {
         &Point3::new(-1.0, 0.0, -1.0),
         0.5,
         material_left,
+    )));
+    world.add(Rc::new(Sphere::new(
+        &Point3::new(-1.0, 0.0, -1.0),
+        0.4,
+        material_bubble,
     )));
     world.add(Rc::new(Sphere::new(
         &Point3::new(1.0, 0.0, -1.0),
