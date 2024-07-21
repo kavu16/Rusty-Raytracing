@@ -1,6 +1,6 @@
-use rand::{thread_rng, Rng};
+use std::f64::consts::PI;
 
-pub const PI: f64 = 3.1415926535897932385;
+use rand::{thread_rng, Rng};
 
 #[inline]
 pub fn degrees_to_radians(degrees: f64) -> f64 {
