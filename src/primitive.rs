@@ -20,24 +20,44 @@ pub trait Hittable {
 }
 
 pub struct Sphere {
-    center: Point3,
+    center1: Point3,
     radius: f64,
     mat: Arc<Material>,
+    is_moving: bool,
+    center_vec: Vec3,
 }
 
 impl Sphere {
-    pub fn new(center: &Point3, radius: f64, mat: Arc<Material>) -> Self {
+    pub fn new(center: Point3, radius: f64, mat: Arc<Material>) -> Self {
         Self {
-            center: *center,
+            center1: center,
             radius: radius.max(0.0),
             mat,
+            is_moving: false,
+            center_vec: Vec3::default(),
         }
+    }
+
+    pub fn new_moving(center1: Point3, center2: Point3, radius: f64, mat: Arc<Material>) -> Self {
+        Self {
+            center1,
+            radius: radius.max(0.0),
+            mat,
+            is_moving: true,
+            center_vec: center2 - center1,
+
+        }
+    }
+
+    fn sphere_center(&self, time: f64) -> Point3 {
+        self.center1 + time * self.center_vec
     }
 }
 
 impl Hittable for Sphere {
     fn hit(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
-        let oc = self.center - r.origin();
+        let center = if self.is_moving { self.sphere_center(r.time()) } else { self.center1 };
+        let oc = center - r.origin();
         let a = r.direction().length_squared();
         let h = r.direction().dot(&oc);
         let c = oc.length_squared() - self.radius * self.radius;
@@ -57,7 +77,7 @@ impl Hittable for Sphere {
         }
         let t = root;
         let p = r.at(t);
-        let normal = (p - self.center).unit_vector();
+        let normal = (p - center).unit_vector();
         let front_face = r.direction().dot(&normal) < 0.0;
         let normal = if front_face { normal } else { -normal };
         let mat = self.mat.clone();
