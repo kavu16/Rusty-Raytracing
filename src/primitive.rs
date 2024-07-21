@@ -1,4 +1,5 @@
-use std::rc::Rc;
+// use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::interval::Interval;
 use crate::material::Material;
@@ -9,7 +10,7 @@ use crate::vec3::*;
 pub struct HitRecord {
     pub p: Point3,
     pub normal: Vec3,
-    pub mat: Rc<Material>,
+    pub mat: Arc<Material>,
     pub t: f64,
     pub front_face: bool,
 }
@@ -21,11 +22,11 @@ pub trait Hittable {
 pub struct Sphere {
     center: Point3,
     radius: f64,
-    mat: Rc<Material>,
+    mat: Arc<Material>,
 }
 
 impl Sphere {
-    pub fn new(center: &Point3, radius: f64, mat: Rc<Material>) -> Self {
+    pub fn new(center: &Point3, radius: f64, mat: Arc<Material>) -> Self {
         Self {
             center: *center,
             radius: radius.max(0.0),
@@ -70,20 +71,22 @@ impl Hittable for Sphere {
         })
     }
 }
+unsafe impl Send for Sphere {}
+unsafe impl Sync for Sphere {}
 
 #[derive(Clone, Default)]
 pub struct HittableList {
-    objects: Vec<Rc<dyn Hittable>>,
+    objects: Vec<Arc<dyn Hittable>>,
 }
 
 impl HittableList {
-    pub fn new(object: Rc<dyn Hittable>) -> Self {
+    pub fn new(object: Arc<dyn Hittable>) -> Self {
         Self {
             objects: vec![object],
         }
     }
 
-    pub fn add(&mut self, object: Rc<dyn Hittable>) {
+    pub fn add(&mut self, object: Arc<dyn Hittable>) {
         self.objects.push(object);
     }
 
@@ -107,3 +110,6 @@ impl Hittable for HittableList {
         rec
     }
 }
+
+unsafe impl Send for HittableList {}
+unsafe impl Sync for HittableList {}

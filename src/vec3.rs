@@ -1,4 +1,5 @@
 use std::fmt::Display;
+use std::iter::Sum;
 use std::ops::*;
 
 use crate::utils::{random_double, random_range};
@@ -53,7 +54,9 @@ impl Vec3 {
     pub fn random_in_unit_disk() -> Self {
         loop {
             let p = Vec3::new(random_range(-1.0, 1.0), random_range(-1.0, 1.0), 0.0);
-            if p.length_squared() < 1.0 { return p; }
+            if p.length_squared() < 1.0 {
+                return p;
+            }
         }
     }
 
@@ -231,3 +234,12 @@ impl DivAssign<f64> for Vec3 {
         *self *= 1.0 / rhs;
     }
 }
+
+impl Sum for Vec3 {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.reduce(|a, b| a + b).unwrap_or_default()
+    }
+}
+
+unsafe impl Send for Vec3 {}
+unsafe impl Sync for Vec3 {}

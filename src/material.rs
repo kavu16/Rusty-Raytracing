@@ -4,7 +4,7 @@ use crate::{color::Color, primitive::HitRecord, ray::Ray, utils::random_double, 
 pub enum Material {
     Lambertian { albedo: Color },
     Metal { albedo: Color, fuzz: f64 },
-    Dielectric { refraction_index: f64 }
+    Dielectric { refraction_index: f64 },
 }
 
 impl Material {
@@ -32,16 +32,20 @@ impl Material {
             }
             Self::Dielectric { refraction_index } => {
                 let attenuation = Color::new(1.0, 1.0, 1.0);
-                let ri = if rec.front_face { 1.0 / refraction_index } else { *refraction_index };
+                let ri = if rec.front_face {
+                    1.0 / refraction_index
+                } else {
+                    *refraction_index
+                };
 
                 let unit_d = r_in.direction().unit_vector();
                 let cos_theta = (-unit_d).dot(&rec.normal).min(1.0);
                 let sin_theta = (1.0 - cos_theta * cos_theta).sqrt();
 
                 let reflectance = {
-                    let r0 = (1.0 - ri) /  (1.0 + ri);
-                    let r0 = r0*r0;
-                    r0 + (1.0 - r0)*(1.0-cos_theta).powf(5.0)
+                    let r0 = (1.0 - ri) / (1.0 + ri);
+                    let r0 = r0 * r0;
+                    r0 + (1.0 - r0) * (1.0 - cos_theta).powf(5.0)
                 };
 
                 let direction = if ri * sin_theta > 1.0 || reflectance > random_double() {
@@ -55,3 +59,6 @@ impl Material {
         }
     }
 }
+
+unsafe impl Send for Material {}
+unsafe impl Sync for Material {}

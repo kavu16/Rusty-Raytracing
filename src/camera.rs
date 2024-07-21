@@ -1,7 +1,12 @@
+use std::sync::Arc;
+
+// use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rayon::prelude::*;
+
 use crate::{
     color::Color,
     interval::Interval,
-    primitive::Hittable,
+    primitive::{Hittable, HittableList},
     ray::Ray,
     utils::{degrees_to_radians, random_double},
     vec3::{Point3, Vec3},
@@ -28,13 +33,15 @@ pub struct Camera {
     pixel00_loc: Point3,
     pixel_delta_u: Vec3,
     pixel_delta_v: Vec3,
-    u: Vec3, v: Vec3, w: Vec3,
+    u: Vec3,
+    v: Vec3,
+    w: Vec3,
     defocus_disk_u: Vec3,
     defocus_disk_v: Vec3,
 }
 
 impl Camera {
-    fn ray_color(r: Ray, depth: i32, world: &dyn Hittable) -> Color {
+    fn ray_color(r: Ray, depth: i32, world: Arc<dyn Hittable>) -> Color {
         if depth <= 0 {
             return Color::new(1.0, 0.0, 0.0);
         }
@@ -100,26 +107,31 @@ impl Camera {
             + ((i as f64 + offset.x) * self.pixel_delta_u)
             + ((j as f64 + offset.y) * self.pixel_delta_v);
 
-        let ray_origin = if self.defocus_angle <= 0.0 { self.center } else { self.defocus_disk_sample() };
+        let ray_origin = if self.defocus_angle <= 0.0 {
+            self.center
+        } else {
+            self.defocus_disk_sample()
+        };
         let ray_direction = pixel_sample - ray_origin;
 
         Ray::new(&ray_origin, &ray_direction)
     }
 
-    pub fn render(&mut self, world: &dyn Hittable) {
+    pub fn render(&mut self, world: Arc<HittableList>) {
         self.initialize();
 
         //Render
         println!("P3\n{} {}\n255\n", self.image_width, self.image_height);
-
         for j in 0..self.image_height {
             eprint!("\rScanlines remaining: {}    ", self.image_height - j);
             for i in 0..self.image_width {
-                let mut pixel_color = Color::new(0.0, 0.0, 0.0);
-                for _sample in 0..self.samples_per_pixel {
-                    let r = self.get_ray(i, j);
-                    pixel_color += Camera::ray_color(r, self.max_depth, world);
-                }
+                let pixel_color: Color = (0..self.samples_per_pixel)
+                    .into_par_iter()
+                    .map_init(
+                        || self.get_ray(i, j),
+                        |r, _s| Camera::ray_color(*r, self.max_depth, world.clone()),
+                    )
+                    .sum();
                 Color::write_color(self.pixel_samples_scale * pixel_color);
             }
         }
