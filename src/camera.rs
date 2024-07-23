@@ -12,7 +12,7 @@ use crate::{
     vec3::{Point3, Vec3},
 };
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy)]
 pub struct Camera {
     pub aspect_ratio: f64,
     pub image_width: i32,
@@ -27,17 +27,17 @@ pub struct Camera {
     pub defocus_angle: f64,
     pub focus_dist: f64,
 
-    image_height: i32,
-    pixel_samples_scale: f64,
-    center: Point3,
-    pixel00_loc: Point3,
-    pixel_delta_u: Vec3,
-    pixel_delta_v: Vec3,
-    u: Vec3,
-    v: Vec3,
-    w: Vec3,
-    defocus_disk_u: Vec3,
-    defocus_disk_v: Vec3,
+    pub image_height: i32,
+    pub pixel_samples_scale: f64,
+    pub center: Point3,
+    pub pixel00_loc: Point3,
+    pub pixel_delta_u: Vec3,
+    pub pixel_delta_v: Vec3,
+    pub u: Vec3,
+    pub v: Vec3,
+    pub w: Vec3,
+    pub defocus_disk_u: Vec3,
+    pub defocus_disk_v: Vec3,
 }
 
 impl Camera {
@@ -137,5 +137,36 @@ impl Camera {
             }
         }
         eprint!("\rDone.                    \n");
+    }
+}
+
+impl Default for Camera {
+    fn default() -> Self {
+        Self {
+            aspect_ratio: 1.0,
+            image_width: 100,
+            samples_per_pixel: 10,
+            max_depth: 10,
+        
+            vfov: 90.0,
+            lookfrom: Point3::new(0.0, 0.0, 0.0),
+            lookat: Point3::new(0.0, 0.0, -1.0),
+            vup: Vec3::new(0.0, 1.0, 0.0),
+        
+            defocus_angle: 0.0,
+            focus_dist: 10.0,
+        
+            image_height: i32::default(),
+            pixel_samples_scale: f64::default(),
+            center: Point3::default(),
+            pixel00_loc: Point3::default(),
+            pixel_delta_u: Vec3::default(),
+            pixel_delta_v: Vec3::default(),
+            u: Vec3::default(),
+            v: Vec3::default(),
+            w: Vec3::default(),
+            defocus_disk_u: Vec3::default(),
+            defocus_disk_v: Vec3::default(),
+        }
     }
 }

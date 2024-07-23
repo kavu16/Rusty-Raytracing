@@ -1,3 +1,4 @@
+use std::f64::consts::PI;
 // use std::rc::Rc;
 use std::sync::Arc;
 
@@ -13,8 +14,8 @@ pub struct HitRecord {
     pub normal: Vec3,
     pub mat: Arc<Material>,
     pub t: f64,
-    // pub u: f64,
-    // pub v: f64,
+    pub u: f64,
+    pub v: f64,
     pub front_face: bool,
 }
 
@@ -66,6 +67,13 @@ impl Sphere {
     fn sphere_center(&self, time: f64) -> Point3 {
         self.center1 + time * self.center_vec
     }
+
+    fn get_sphere_uv(&self, p: Point3) -> (f64, f64) {
+        let theta = -p.y.acos();
+        let phi = -p.z.atan2(p.x) + PI;
+
+        (phi / (2.0*PI), theta / PI)
+    }
 }
 
 impl Hittable for Sphere {
@@ -99,6 +107,7 @@ impl Hittable for Sphere {
         let front_face = r.direction().dot(&normal) < 0.0;
         let normal = if front_face { normal } else { -normal };
         let mat = self.mat.clone();
+        let (u, v) = self.get_sphere_uv(normal);
 
         Some(HitRecord {
             t,
@@ -106,8 +115,8 @@ impl Hittable for Sphere {
             normal,
             mat,
             front_face,
-            // u: todo!(),
-            // v: todo!(),
+            u,
+            v,
         })
     }
 

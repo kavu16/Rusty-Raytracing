@@ -1,8 +1,10 @@
-use crate::{color::Color, primitive::HitRecord, ray::Ray, utils::random_double, vec3::Vec3};
+use std::sync::Arc;
 
-#[derive(Clone, Copy, Debug)]
+use crate::{color::Color, primitive::HitRecord, ray::Ray, texture::Texture, utils::random_double, vec3::Vec3};
+
+#[derive(Clone)]
 pub enum Material {
-    Lambertian { albedo: Color, },
+    Lambertian { tex: Arc<dyn Texture>, },
     Metal { albedo: Color, fuzz: f64 },
     Dielectric { refraction_index: f64 },
 }
@@ -10,14 +12,14 @@ pub enum Material {
 impl Material {
     pub fn scatter(&self, r_in: Ray, rec: &HitRecord) -> Option<(Ray, Color)> {
         match self {
-            Self::Lambertian { albedo } => {
+            Self::Lambertian { tex } => {
                 let mut scatter_direction = rec.normal + Vec3::random_unit_vector();
 
                 if scatter_direction.near_zero() {
                     scatter_direction = rec.normal;
                 }
 
-                Some((Ray::new(rec.p, scatter_direction, r_in.time()), *albedo))
+                Some((Ray::new(rec.p, scatter_direction, r_in.time()), tex.value(rec.u, rec.v, &rec.p)))
             }
             Self::Metal { albedo, fuzz } => {
                 let fuzz = fuzz.min(1.0);
