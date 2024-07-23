@@ -1,6 +1,7 @@
 // use std::rc::Rc;
 use std::sync::Arc;
 
+use crate::aabb::AABB;
 use crate::interval::Interval;
 use crate::material::Material;
 use crate::ray::Ray;
@@ -12,11 +13,14 @@ pub struct HitRecord {
     pub normal: Vec3,
     pub mat: Arc<Material>,
     pub t: f64,
+    // pub u: f64,
+    // pub v: f64,
     pub front_face: bool,
 }
 
 pub trait Hittable {
-    fn hit(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord>;
+    fn hit(&self, r: &Ray, ray_t: &mut Interval) -> Option<HitRecord>;
+    fn bounding_box(&self) -> AABB;
 }
 
 pub struct Sphere {
@@ -25,6 +29,7 @@ pub struct Sphere {
     mat: Arc<Material>,
     is_moving: bool,
     center_vec: Vec3,
+    bbox: AABB,
 }
 
 impl Sphere {
@@ -35,6 +40,10 @@ impl Sphere {
             mat,
             is_moving: false,
             center_vec: Vec3::default(),
+            bbox: {
+                let rvec = Vec3::new(radius, radius, radius);
+                AABB::from((center - rvec, center + rvec))
+            },
         }
     }
 
@@ -45,7 +54,12 @@ impl Sphere {
             mat,
             is_moving: true,
             center_vec: center2 - center1,
-
+            bbox: {
+                let rvec = Vec3::new(radius, radius, radius);
+                let box1 = AABB::from((center1 - rvec, center1 + rvec));
+                let box2 = AABB::from((center2 - rvec, center2 + rvec));
+                AABB::from((box1, box2))
+            },
         }
     }
 
@@ -55,8 +69,12 @@ impl Sphere {
 }
 
 impl Hittable for Sphere {
-    fn hit(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
-        let center = if self.is_moving { self.sphere_center(r.time()) } else { self.center1 };
+    fn hit(&self, r: &Ray, ray_t: &mut Interval) -> Option<HitRecord> {
+        let center = if self.is_moving {
+            self.sphere_center(r.time())
+        } else {
+            self.center1
+        };
         let oc = center - r.origin();
         let a = r.direction().length_squared();
         let h = r.direction().dot(&oc);
@@ -88,7 +106,13 @@ impl Hittable for Sphere {
             normal,
             mat,
             front_face,
+            // u: todo!(),
+            // v: todo!(),
         })
+    }
+
+    fn bounding_box(&self) -> AABB {
+        self.bbox
     }
 }
 unsafe impl Send for Sphere {}
@@ -96,17 +120,19 @@ unsafe impl Sync for Sphere {}
 
 #[derive(Clone, Default)]
 pub struct HittableList {
-    objects: Vec<Arc<dyn Hittable>>,
+    pub objects: Vec<Arc<dyn Hittable>>,
+    bbox: AABB,
 }
 
 impl HittableList {
     pub fn new(object: Arc<dyn Hittable>) -> Self {
-        Self {
-            objects: vec![object],
-        }
+        let mut hit_list = HittableList::default();
+        hit_list.add(object);
+        hit_list
     }
 
     pub fn add(&mut self, object: Arc<dyn Hittable>) {
+        self.bbox = AABB::from((self.bbox, object.bounding_box()));
         self.objects.push(object);
     }
 
@@ -116,18 +142,22 @@ impl HittableList {
 }
 
 impl Hittable for HittableList {
-    fn hit(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
+    fn hit(&self, r: &Ray, ray_t: &mut Interval) -> Option<HitRecord> {
         let mut rec = None;
         let mut closest = ray_t.max;
 
         for object in self.objects.iter() {
-            if let Some(temp_rec) = object.hit(r, Interval::new(ray_t.min, closest)) {
+            if let Some(temp_rec) = object.hit(r, &mut Interval::new(ray_t.min, closest)) {
                 closest = temp_rec.t;
                 rec = Some(temp_rec);
             }
         }
 
         rec
+    }
+
+    fn bounding_box(&self) -> AABB {
+        self.bbox
     }
 }
 

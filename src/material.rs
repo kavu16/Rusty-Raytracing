@@ -2,7 +2,7 @@ use crate::{color::Color, primitive::HitRecord, ray::Ray, utils::random_double, 
 
 #[derive(Clone, Copy, Debug)]
 pub enum Material {
-    Lambertian { albedo: Color },
+    Lambertian { albedo: Color, },
     Metal { albedo: Color, fuzz: f64 },
     Dielectric { refraction_index: f64 },
 }

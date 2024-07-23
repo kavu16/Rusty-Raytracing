@@ -45,7 +45,7 @@ impl Camera {
         if depth <= 0 {
             return Color::new(1.0, 0.0, 0.0);
         }
-        if let Some(rec) = world.hit(&r, Interval::new(0.001, f64::INFINITY)) {
+        if let Some(rec) = world.hit(&r, &mut Interval::new(0.001, f64::INFINITY)) {
             if let Some((scattered, attenuation)) = rec.mat.scatter(r, &rec) {
                 return attenuation * Camera::ray_color(scattered, depth - 1, world);
             }

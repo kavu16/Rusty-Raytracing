@@ -1,3 +1,4 @@
+use core::panic;
 use std::fmt::Display;
 use std::iter::Sum;
 use std::ops::*;
@@ -238,6 +239,19 @@ impl DivAssign<f64> for Vec3 {
 impl Sum for Vec3 {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
         iter.reduce(|a, b| a + b).unwrap_or_default()
+    }
+}
+
+impl Index<i32> for Vec3 {
+    type Output = f64;
+
+    fn index(&self, index: i32) -> &Self::Output {
+        match index {
+            0 => &self.x,
+            1 => &self.y,
+            2 => &self.z,
+            _ => panic!("Index out of bounds"),
+        }
     }
 }
 

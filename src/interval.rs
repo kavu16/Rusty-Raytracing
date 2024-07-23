@@ -1,3 +1,4 @@
+#[derive(Clone, Copy)]
 pub struct Interval {
     pub min: f64,
     pub max: f64,
@@ -19,6 +20,11 @@ impl Interval {
     pub fn surrounds(&self, x: f64) -> bool {
         self.min < x && x < self.max
     }
+
+    pub fn expand(self, delta: f64) -> Self {
+        let padding = delta / 2.0;
+        Interval::new(self.min - padding, self.max + padding)
+    }
 }
 
 impl Default for Interval {
@@ -26,6 +32,15 @@ impl Default for Interval {
         Self {
             min: f64::INFINITY,
             max: f64::NEG_INFINITY,
+        }
+    }
+}
+
+impl From<(Interval, Interval)> for Interval {
+    fn from((a, b): (Interval, Interval)) -> Self {
+        Self {
+            min: if a.min <= b.min { a.min } else { b.min },
+            max: if a.max >= b.max { a.max } else { b.max },
         }
     }
 }

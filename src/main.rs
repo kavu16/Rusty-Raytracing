@@ -1,6 +1,7 @@
 // use std::rc::Rc;
 use std::sync::Arc;
 
+use raytracing::bvh::BVHNode;
 use raytracing::camera::Camera;
 use raytracing::color::Color;
 use raytracing::material::Material;
@@ -39,7 +40,12 @@ fn main() {
                 let albedo = Color::random() * Color::random();
                 let sphere_material = Arc::new(Material::Lambertian { albedo });
                 let center2 = center + Vec3::new(0.0, random_range(0.0, 0.5), 0.0);
-                world.add(Arc::new(Sphere::new_moving(center, center2, 0.2, sphere_material)));
+                world.add(Arc::new(Sphere::new_moving(
+                    center,
+                    center2,
+                    0.2,
+                    sphere_material,
+                )));
             } else if choose_mat < 0.95 {
                 // metal
                 let albedo = Color::random_range(0.5, 1.0);
@@ -84,7 +90,10 @@ fn main() {
         material3,
     )));
 
-    let world = Arc::new(world);
+    // BVH seems to be slow... need to investigate
+    let world = Arc::new(BVHNode::from(world));
+    let world = Arc::new(HittableList::new(world));
+    // let world = Arc::new(world);
 
     let mut cam = Camera::default();
     cam.aspect_ratio = 16.0 / 9.0;
