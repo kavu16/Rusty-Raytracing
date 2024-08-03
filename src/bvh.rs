@@ -32,14 +32,12 @@ impl BVHNode {
 
         let object_span = end - start;
         match object_span {
-            1 => {
-                Self {
-                    left: None,
-                    right: None,
-                    object: Some(objects[start].clone()),
-                    bbox,
-                }
-            }
+            1 => Self {
+                left: None,
+                right: None,
+                object: Some(objects[start].clone()),
+                bbox,
+            },
             _ => {
                 objects[start..end].sort_by(|a, b| comparator(a.clone(), b.clone()));
 
@@ -76,7 +74,7 @@ impl BVHNode {
 
     pub fn depth(&self, curr_depth: usize) -> usize {
         if let (Some(left), Some(right)) = (self.left.clone(), self.right.clone()) {
-            left.depth(curr_depth+1).max(right.depth(curr_depth + 1)) 
+            left.depth(curr_depth + 1).max(right.depth(curr_depth + 1))
         } else {
             if let Some(_object) = &self.object {
                 println!("There's a sphere here");

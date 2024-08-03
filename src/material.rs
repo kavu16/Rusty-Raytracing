@@ -1,12 +1,20 @@
 use std::sync::Arc;
 
-use crate::{color::Color, primitive::HitRecord, ray::Ray, texture::Texture, utils::random_double, vec3::Vec3};
+use crate::{
+    color::Color,
+    primitive::HitRecord,
+    ray::Ray,
+    texture::Texture,
+    utils::random_double,
+    vec3::{Point3, Vec3},
+};
 
 #[derive(Clone)]
 pub enum Material {
-    Lambertian { tex: Arc<dyn Texture>, },
+    Lambertian { tex: Arc<dyn Texture> },
     Metal { albedo: Color, fuzz: f64 },
     Dielectric { refraction_index: f64 },
+    DiffuseLight { tex: Arc<dyn Texture> },
 }
 
 impl Material {
@@ -19,7 +27,10 @@ impl Material {
                     scatter_direction = rec.normal;
                 }
 
-                Some((Ray::new(rec.p, scatter_direction, r_in.time()), tex.value(rec.u, rec.v, &rec.p)))
+                Some((
+                    Ray::new(rec.p, scatter_direction, r_in.time()),
+                    tex.value(rec.u, rec.v, &rec.p),
+                ))
             }
             Self::Metal { albedo, fuzz } => {
                 let fuzz = fuzz.min(1.0);
@@ -58,6 +69,14 @@ impl Material {
 
                 Some((Ray::new(rec.p, direction, r_in.time()), attenuation))
             }
+            _ => None,
+        }
+    }
+
+    pub fn emitted(&self, u: f64, v: f64, p: Point3) -> Color {
+        match self {
+            Self::DiffuseLight { tex } => tex.value(u, v, &p),
+            _ => Color::default(),
         }
     }
 }

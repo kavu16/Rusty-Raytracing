@@ -1,4 +1,5 @@
 use std::f64::consts::PI;
+use std::f64::{INFINITY, NEG_INFINITY};
 // use std::rc::Rc;
 use std::sync::Arc;
 
@@ -6,6 +7,7 @@ use crate::aabb::AABB;
 use crate::interval::Interval;
 use crate::material::Material;
 use crate::ray::Ray;
+use crate::utils::degrees_to_radians;
 use crate::vec3::*;
 
 #[derive(Clone)]
@@ -72,7 +74,7 @@ impl Sphere {
         let theta = (-p.y).acos();
         let phi = (-p.z).atan2(p.x) + PI;
 
-        (phi / (2.0*PI), theta / PI)
+        (phi / (2.0 * PI), theta / PI)
     }
 }
 
@@ -152,13 +154,16 @@ impl HittableList {
 
 impl Hittable for HittableList {
     fn hit(&self, r: &Ray, ray_t: &mut Interval) -> Option<HitRecord> {
-        self.objects.iter().fold((ray_t.max, None), |(closest, curr_rec), object| {
-            if let Some(temp_rec) = object.hit(r, &mut Interval::new(ray_t.min, closest)) {
-                (temp_rec.t, Some(temp_rec))
-            } else {
-                (closest, curr_rec)
-            }
-        }).1 // Returning curr_rec
+        self.objects
+            .iter()
+            .fold((ray_t.max, None), |(closest, curr_rec), object| {
+                if let Some(temp_rec) = object.hit(r, &mut Interval::new(ray_t.min, closest)) {
+                    (temp_rec.t, Some(temp_rec))
+                } else {
+                    (closest, curr_rec)
+                }
+            })
+            .1 // Returning curr_rec
     }
 
     fn bounding_box(&self) -> AABB {
@@ -180,7 +185,8 @@ unsafe impl Sync for Shape {}
 
 pub struct Planar {
     q: Point3,
-    u: Vec3, v: Vec3,
+    u: Vec3,
+    v: Vec3,
     w: Vec3,
     mat: Arc<Material>,
     bbox: AABB,
@@ -222,11 +228,15 @@ impl Hittable for Planar {
         let denom = self.normal.dot(&r.direction());
 
         // no hit if parallel
-        if denom.abs() < 1e-8 { return None; }
+        if denom.abs() < 1e-8 {
+            return None;
+        }
 
         // no hit if t outside ray interval
         let t = (self.d - self.normal.dot(&r.origin())) / denom;
-        if !ray_t.contains(t) { return None; }
+        if !ray_t.contains(t) {
+            return None;
+        }
 
         // Determine if hit lies within quad
         let intersection = r.at(t);
@@ -248,16 +258,20 @@ impl Hittable for Planar {
             }
             Shape::Triangle => {
                 if !(alpha > 0.0 && beta > 0.0 && alpha + beta < 1.0) {
-                    return None
+                    return None;
                 }
             }
         }
 
         let front_face = r.direction().dot(&self.normal) < 0.0;
-        let normal = if front_face { self.normal } else { -self.normal };
+        let normal = if front_face {
+            self.normal
+        } else {
+            -self.normal
+        };
 
         Some(HitRecord {
-            t, 
+            t,
             p: intersection,
             normal,
             mat: self.mat.clone(),
@@ -274,3 +288,145 @@ impl Hittable for Planar {
 
 unsafe impl Send for Planar {}
 unsafe impl Sync for Planar {}
+
+#[inline]
+pub fn build_box(a: Point3, b: Point3, mat: Arc<Material>) -> Arc<HittableList> {
+    let mut sides = HittableList::default();
+
+    let min = Point3::new(a.x.min(b.x), a.y.min(b.y), a.z.min(b.z));
+    let max = Point3::new(a.x.max(b.x), a.y.max(b.y), a.z.max(b.z));
+
+    let dx = Vec3::new(max.x - min.x, 0.0, 0.0);
+    let dy = Vec3::new(0.0, max.y - min.y, 0.0);
+    let dz = Vec3::new(0.0, 0.0, max.z - min.z);
+
+    sides.add(Arc::new(Planar::new(Point3::new(min.x, min.y, max.z), dx, dy, mat.clone(), Shape::Quad)));    
+    sides.add(Arc::new(Planar::new(Point3::new(max.x, min.y, max.z), -dz, dy, mat.clone(), Shape::Quad)));    
+    sides.add(Arc::new(Planar::new(Point3::new(max.x, min.y, min.z), -dx, dy, mat.clone(), Shape::Quad)));    
+    sides.add(Arc::new(Planar::new(Point3::new(min.x, min.y, min.z), dz, dy, mat.clone(), Shape::Quad)));    
+    sides.add(Arc::new(Planar::new(Point3::new(min.x, max.y, max.z), dx, -dz, mat.clone(), Shape::Quad)));    
+    sides.add(Arc::new(Planar::new(Point3::new(min.x, min.y, min.z), dx, dz, mat.clone(), Shape::Quad))); 
+
+    Arc::new(sides)   
+}
+
+pub struct Translate {
+    object: Arc<dyn Hittable>,
+    offset: Vec3,
+    bbox: AABB,
+}
+
+impl Translate {
+    pub fn new(object: Arc<dyn Hittable>, offset: Vec3) -> Self {
+        Self {
+            object: object.clone(),
+            offset,
+            bbox: object.clone().bounding_box() + offset,
+        }
+    }
+}
+
+impl Hittable for Translate {
+    fn hit(&self, r: &Ray, ray_t: &mut Interval) -> Option<HitRecord> {
+        let offset_r = Ray::new(r.origin() - self.offset, r.direction(), r.time());
+
+        if let Some(rec) = self.object.hit(&offset_r, ray_t) {
+            return Some(HitRecord {
+                p: rec.p + self.offset,
+                ..rec
+            });
+        }
+
+        None
+    }
+
+    fn bounding_box(&self) -> AABB {
+        self.bbox
+    }
+}
+
+unsafe impl Send for Translate {}
+unsafe impl Sync for Translate {}
+
+pub struct RotateY {
+    object: Arc<dyn Hittable>,
+    sin_theta: f64,
+    cos_theta: f64,
+    bbox: AABB,
+}
+
+impl RotateY {
+    pub fn new(object: Arc<dyn Hittable>, angle: f64) -> Self {
+        let radians = degrees_to_radians(angle);
+        let sin_theta = radians.sin();
+        let cos_theta = radians.cos();
+        let bbox = object.clone().bounding_box();
+
+        let mut min = Point3::new(INFINITY, INFINITY, INFINITY);
+        let mut max = Point3::new(NEG_INFINITY, NEG_INFINITY, NEG_INFINITY);
+
+        for i in 0..2 {
+            for j in 0..2 {
+                for k in 0..2 {
+                    let x = i as f64 * bbox.x.max + (1.0 - i as f64) * bbox.x.min;
+                    let y = j as f64 * bbox.y.max + (1.0 - j as f64) * bbox.y.min;
+                    let z = k as f64 * bbox.z.max + (1.0 - k as f64) * bbox.z.min;
+
+                    let newx = cos_theta * x + sin_theta * z;
+                    let newz = -sin_theta * x + cos_theta * z;
+
+                    let tester = Vec3::new(newx, y, newz);
+
+                    for c in 0..3 {
+                        min[c] = min[c].min(tester[c]);
+                        max[c] = max[c].max(tester[c]);
+                    }
+                }
+            }
+        }
+
+        Self {
+            object: object.clone(),
+            sin_theta,
+            cos_theta,
+            bbox: AABB::from((min, max)),
+        }
+    }
+}
+
+impl Hittable for RotateY {
+    fn hit(&self, r: &Ray, ray_t: &mut Interval) -> Option<HitRecord> {
+        let mut origin = r.origin();
+        let mut direction = r.direction();
+
+        origin[0] = self.cos_theta * r.origin()[0] - self.sin_theta * r.origin()[2];
+        origin[2] = self.sin_theta * r.origin()[0] + self.cos_theta * r.origin()[2];
+
+        direction[0] = self.cos_theta * r.direction()[0] - self.sin_theta * r.direction()[2];
+        direction[2] = self.sin_theta * r.direction()[0] + self.cos_theta * r.direction()[2];
+
+        let rotated_r = Ray::new(origin, direction, r.time());
+
+        if let Some(rec) = self.object.hit(&rotated_r, ray_t) {
+            let mut p = rec.p;
+            p[0] = self.cos_theta * rec.p[0] + self.sin_theta * rec.p[2];
+            p[2] = -self.sin_theta * rec.p[0] + self.cos_theta * rec.p[2];
+
+            let mut normal = rec.normal;
+            normal[0] = self.cos_theta * rec.normal[0] + self.sin_theta * rec.normal[2];
+            normal[2] = -self.sin_theta * rec.normal[0] + self.cos_theta * rec.normal[2];
+
+            return Some(HitRecord {
+                p,
+                normal,
+                ..rec
+            });
+        }
+
+        None
+    }
+
+    fn bounding_box(&self) -> AABB {
+        self.bbox
+    }
+}

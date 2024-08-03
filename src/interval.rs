@@ -1,3 +1,5 @@
+use std::ops::Add;
+
 #[derive(Clone, Copy)]
 pub struct Interval {
     pub min: f64,
@@ -56,3 +58,19 @@ pub const UNIVERSE: Interval = Interval {
     min: f64::NEG_INFINITY,
     max: f64::INFINITY,
 };
+
+impl Add<f64> for Interval {
+    type Output = Self;
+
+    fn add(self, rhs: f64) -> Self::Output {
+        Interval::new(self.min + rhs, self.max + rhs)
+    }
+}
+
+impl Add<Interval> for f64 {
+    type Output = Interval;
+
+    fn add(self, rhs: Interval) -> Self::Output {
+        rhs + self
+    }
+}

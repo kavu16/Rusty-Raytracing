@@ -18,6 +18,7 @@ pub struct Camera {
     pub image_width: i32,
     pub samples_per_pixel: i32,
     pub max_depth: i32,
+    pub background: Color,
 
     pub vfov: f64,
     pub lookfrom: Point3,
@@ -41,21 +42,20 @@ pub struct Camera {
 }
 
 impl Camera {
-    fn ray_color(r: Ray, depth: i32, world: Arc<dyn Hittable>) -> Color {
+    fn ray_color(&self, r: Ray, depth: i32, world: Arc<dyn Hittable>) -> Color {
         if depth <= 0 {
-            return Color::new(1.0, 0.0, 0.0);
+            return Color::default();
         }
         if let Some(rec) = world.hit(&r, &mut Interval::new(0.001, f64::INFINITY)) {
+            let color_from_emission = rec.mat.emitted(rec.u, rec.v, rec.p);
             if let Some((scattered, attenuation)) = rec.mat.scatter(r, &rec) {
-                return attenuation * Camera::ray_color(scattered, depth - 1, world);
+                let color_from_scatter =
+                    attenuation * Camera::ray_color(self, scattered, depth - 1, world);
+                return color_from_emission + color_from_scatter;
             }
-            return Color::new(0.0, 0.0, 0.0);
+            return color_from_emission;
         }
-
-        let unit_direction = Vec3::unit_vector(&r.direction());
-        let a = 0.5 * (unit_direction.y + 1.0);
-
-        (1.0 - a) * Color::new(1.0, 1.0, 1.0) + a * Color::new(0.5, 0.7, 1.0)
+        return self.background;
     }
 
     fn initialize(&mut self) {
@@ -130,7 +130,7 @@ impl Camera {
                     .into_par_iter()
                     .map_init(
                         || self.get_ray(i, j),
-                        |r, _s| Camera::ray_color(*r, self.max_depth, world.clone()),
+                        |r, _s| Camera::ray_color(self, *r, self.max_depth, world.clone()),
                     )
                     .sum();
                 Color::write_color(self.pixel_samples_scale * pixel_color);
@@ -147,15 +147,16 @@ impl Default for Camera {
             image_width: 100,
             samples_per_pixel: 10,
             max_depth: 10,
-        
+            background: Color::default(),
+
             vfov: 90.0,
             lookfrom: Point3::new(0.0, 0.0, 0.0),
             lookat: Point3::new(0.0, 0.0, -1.0),
             vup: Vec3::new(0.0, 1.0, 0.0),
-        
+
             defocus_angle: 0.0,
             focus_dist: 10.0,
-        
+
             image_height: i32::default(),
             pixel_samples_scale: f64::default(),
             center: Point3::default(),

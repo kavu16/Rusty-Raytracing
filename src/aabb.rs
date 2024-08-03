@@ -1,14 +1,16 @@
+use std::ops::Add;
+
 use crate::{
     interval::{Interval, EMPTY as IEmpty, UNIVERSE as IUniverse},
     ray::Ray,
-    vec3::Point3,
+    vec3::{Vec3, Point3},
 };
 
 #[derive(Clone, Copy, Default)]
 pub struct AABB {
-    x: Interval,
-    y: Interval,
-    z: Interval,
+    pub x: Interval,
+    pub y: Interval,
+    pub z: Interval,
 }
 
 impl AABB {
@@ -78,9 +80,15 @@ impl AABB {
     fn pad_to_minimums(&mut self) {
         let delta = 0.0001;
 
-        if self.x.size() < delta { self.x = self.x.expand(delta); }
-        if self.y.size() < delta { self.y = self.y.expand(delta); }
-        if self.z.size() < delta { self.z = self.z.expand(delta); }
+        if self.x.size() < delta {
+            self.x = self.x.expand(delta);
+        }
+        if self.y.size() < delta {
+            self.y = self.y.expand(delta);
+        }
+        if self.z.size() < delta {
+            self.z = self.z.expand(delta);
+        }
     }
 }
 
@@ -128,3 +136,19 @@ pub const UNIVERSE: AABB = AABB {
     y: IUniverse,
     z: IUniverse,
 };
+
+impl Add<Vec3> for AABB {
+    type Output = Self;
+
+    fn add(self, rhs: Vec3) -> Self::Output {
+        AABB::new(self.x + rhs.x, self.y + rhs.y, self.z + rhs.z)
+    }
+}
+
+impl Add<AABB> for Vec3 {
+    type Output = AABB;
+
+    fn add(self, rhs: AABB) -> Self::Output {
+        rhs + self
+    }
+}

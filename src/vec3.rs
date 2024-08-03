@@ -255,5 +255,16 @@ impl Index<i32> for Vec3 {
     }
 }
 
+impl IndexMut<i32> for Vec3 {
+    fn index_mut(&mut self, index: i32) -> &mut Self::Output {
+        match index {
+            0 => &mut self.x,
+            1 => &mut self.y,
+            2 => &mut self.z,
+            _ => panic!("Index out of bounds"),
+        }
+    }
+}
+
 unsafe impl Send for Vec3 {}
 unsafe impl Sync for Vec3 {}

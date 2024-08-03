@@ -8,14 +8,12 @@ pub trait Texture {
 
 #[derive(Clone, Copy, Default, Debug)]
 pub struct SolidColor {
-    albedo: Color
+    albedo: Color,
 }
 
 impl SolidColor {
     pub fn new(albedo: &Color) -> Self {
-        Self {
-            albedo: *albedo,
-        }
+        Self { albedo: *albedo }
     }
 }
 
@@ -53,7 +51,11 @@ impl CheckerTexture {
 
 impl From<(f64, &Color, &Color)> for CheckerTexture {
     fn from((scale, c1, c2): (f64, &Color, &Color)) -> Self {
-        CheckerTexture::new(scale, Arc::new(SolidColor::new(c1)), Arc::new(SolidColor::new(c2)))
+        CheckerTexture::new(
+            scale,
+            Arc::new(SolidColor::new(c1)),
+            Arc::new(SolidColor::new(c2)),
+        )
     }
 }
 
@@ -90,7 +92,7 @@ impl NoiseTexture {
 
 impl Texture for NoiseTexture {
     fn value(&self, _u: f64, _v: f64, p: &Point3) -> Color {
-        Color::new(0.5, 0.5, 0.5) * (1.0 + (self.scale * p.z + 10.0 * self.noise.turb(*p, 7)).sin()) 
+        Color::new(0.5, 0.5, 0.5) * (1.0 + (self.scale * p.z + 10.0 * self.noise.turb(*p, 7)).sin())
     }
 }
 
