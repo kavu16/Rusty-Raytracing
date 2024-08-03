@@ -168,3 +168,109 @@ impl Hittable for HittableList {
 
 unsafe impl Send for HittableList {}
 unsafe impl Sync for HittableList {}
+
+pub enum Shape {
+    Quad,
+    Triangle,
+    Circle { radius: f64 },
+}
+
+unsafe impl Send for Shape {}
+unsafe impl Sync for Shape {}
+
+pub struct Planar {
+    q: Point3,
+    u: Vec3, v: Vec3,
+    w: Vec3,
+    mat: Arc<Material>,
+    bbox: AABB,
+    normal: Vec3,
+    d: f64,
+    shape: Shape,
+}
+
+impl Planar {
+    pub fn new(q: Point3, u: Vec3, v: Vec3, mat: Arc<Material>, shape: Shape) -> Self {
+        let n = u.cross(&v);
+        let normal = n.unit_vector();
+        let d = normal.dot(&q);
+        let w = n / n.dot(&n);
+        let mut planar = Self {
+            q,
+            u,
+            v,
+            w,
+            mat,
+            bbox: AABB::default(),
+            normal,
+            d,
+            shape,
+        };
+        planar.set_bounding_box();
+        planar
+    }
+
+    pub fn set_bounding_box(&mut self) {
+        let bbox_diagonal1 = AABB::from((self.q, self.q + self.u + self.v));
+        let bbox_diagonal2 = AABB::from((self.q + self.u, self.q + self.v));
+        self.bbox = AABB::from((bbox_diagonal1, bbox_diagonal2));
+    }
+}
+
+impl Hittable for Planar {
+    fn hit(&self, r: &Ray, ray_t: &mut Interval) -> Option<HitRecord> {
+        let denom = self.normal.dot(&r.direction());
+
+        // no hit if parallel
+        if denom.abs() < 1e-8 { return None; }
+
+        // no hit if t outside ray interval
+        let t = (self.d - self.normal.dot(&r.origin())) / denom;
+        if !ray_t.contains(t) { return None; }
+
+        // Determine if hit lies within quad
+        let intersection = r.at(t);
+        let planar_hitpt_vector = intersection - self.q;
+        let alpha = self.w.dot(&planar_hitpt_vector.cross(&self.v));
+        let beta = self.w.dot(&self.u.cross(&planar_hitpt_vector));
+
+        match self.shape {
+            Shape::Quad => {
+                let unit_interval = Interval::new(0.0, 1.0);
+                if !unit_interval.contains(alpha) || !unit_interval.contains(beta) {
+                    return None;
+                }
+            }
+            Shape::Circle { radius } => {
+                if (alpha * alpha + beta * beta).sqrt() > radius {
+                    return None;
+                }
+            }
+            Shape::Triangle => {
+                if !(alpha > 0.0 && beta > 0.0 && alpha + beta < 1.0) {
+                    return None
+                }
+            }
+        }
+
+        let front_face = r.direction().dot(&self.normal) < 0.0;
+        let normal = if front_face { self.normal } else { -self.normal };
+
+        Some(HitRecord {
+            t, 
+            p: intersection,
+            normal,
+            mat: self.mat.clone(),
+            front_face,
+            u: alpha,
+            v: beta,
+        })
+    }
+
+    fn bounding_box(&self) -> AABB {
+        self.bbox
+    }
+}
+
+unsafe impl Send for Planar {}
+unsafe impl Sync for Planar {}

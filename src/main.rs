@@ -5,8 +5,7 @@ use raytracing::bvh::BVHNode;
 use raytracing::camera::Camera;
 use raytracing::color::Color;
 use raytracing::material::Material;
-use raytracing::perlin::Perlin;
-use raytracing::primitive::{HittableList, Sphere};
+use raytracing::primitive::{HittableList, Planar, Shape, Sphere};
 use raytracing::texture::{CheckerTexture, NoiseTexture, SolidColor};
 use raytracing::utils::{random_double, random_range};
 use raytracing::vec3::{Point3, Vec3};
@@ -188,18 +187,55 @@ fn perlin_spheres() {
     cam.render(Arc::new(world))
 }
 
+fn quads() {
+    let mut world = HittableList::default();
+
+    // Materials
+    let left_red = Arc::new(Material::Lambertian { tex: Arc::new(SolidColor::new(&Color::new(1.0, 0.2, 0.2))) });
+    let back_green = Arc::new(Material::Lambertian { tex: Arc::new(SolidColor::new(&Color::new(0.2, 1.0, 0.2))) });
+    let right_blue = Arc::new(Material::Lambertian { tex: Arc::new(SolidColor::new(&Color::new(0.2, 0.2, 1.0))) });
+    let upper_orange = Arc::new(Material::Lambertian { tex: Arc::new(SolidColor::new(&Color::new(1.0, 0.5, 0.0))) });
+    let lower_teal = Arc::new(Material::Lambertian { tex: Arc::new(SolidColor::new(&Color::new(0.2, 0.8, 0.8))) });
+
+    // Quads
+    world.add(Arc::new(Planar::new(Point3::new(-3.0, -2.0, 5.0), Vec3::new(0.0, 0.0, -4.0), Vec3::new(0.0, 4.0, 0.0), left_red, Shape::Quad)));
+    world.add(Arc::new(Planar::new(Point3::new(-2.0, -2.0, 0.0), Vec3::new(4.0, 0.0, 0.0), Vec3::new(0.0, 4.0, 0.0), back_green, Shape::Quad)));
+    world.add(Arc::new(Planar::new(Point3::new(3.0, -2.0, 1.0), Vec3::new(0.0, 0.0, 4.0), Vec3::new(0.0, 4.0, 0.0), right_blue, Shape::Quad)));
+    world.add(Arc::new(Planar::new(Point3::new(-2.0, 3.0, 1.0), Vec3::new(4.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 4.0), upper_orange, Shape::Quad)));
+    world.add(Arc::new(Planar::new(Point3::new(-2.0, -3.0, 5.0), Vec3::new(4.0, 0.0, 0.0), Vec3::new(0.0, 0.0, -4.0), lower_teal, Shape::Quad)));
+
+    let mut cam = Camera {
+        aspect_ratio: 1.0,
+        image_width: 400,
+        samples_per_pixel: 100,
+        max_depth: 50,
+
+        vfov: 80.0,
+        lookfrom: Point3::new(0.0, 0.0, 9.0),
+        lookat: Point3::new(0.0, 0.0, 0.0),
+        vup: Vec3::new(0.0, 1.0, 0.0),
+
+        defocus_angle: 0.0,
+        ..Camera::default()
+    };
+
+    cam.render(Arc::new(world));
+}
+
 fn main() {
     let mut scene = String::new();
     eprintln!("Input scene index: ");
     eprintln!("-- 0. Bouncing Spheres");
     eprintln!("-- 1. Checkered Spheres");
     eprintln!("-- 2. Perlin Spheres");
+    eprintln!("-- 3. Planar");
     std::io::stdin().read_line(&mut scene).expect("Invalid input");
     scene.pop();
     match scene.parse::<i32>() {
         Ok(0) => bouncing_spheres(),
         Ok(1) => checkered_spheres(),
         Ok(2) => perlin_spheres(),
+        Ok(3) => quads(),
         _ => {
             eprintln!("Invalid Scene index: {scene}");
         }

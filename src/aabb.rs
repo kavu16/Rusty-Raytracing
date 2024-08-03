@@ -13,7 +13,9 @@ pub struct AABB {
 
 impl AABB {
     pub fn new(x: Interval, y: Interval, z: Interval) -> Self {
-        Self { x, y, z }
+        let mut aabb = Self { x, y, z };
+        aabb.pad_to_minimums();
+        aabb
     }
 
     #[inline]
@@ -71,13 +73,20 @@ impl AABB {
         } else {
             2
         }
-        
+    }
+
+    fn pad_to_minimums(&mut self) {
+        let delta = 0.0001;
+
+        if self.x.size() < delta { self.x = self.x.expand(delta); }
+        if self.y.size() < delta { self.y = self.y.expand(delta); }
+        if self.z.size() < delta { self.z = self.z.expand(delta); }
     }
 }
 
 impl From<(Point3, Point3)> for AABB {
     fn from((a, b): (Point3, Point3)) -> Self {
-        Self {
+        let mut aabb = Self {
             x: if a.x <= b.x {
                 Interval::new(a.x, b.x)
             } else {
@@ -93,7 +102,9 @@ impl From<(Point3, Point3)> for AABB {
             } else {
                 Interval::new(b.z, a.z)
             },
-        }
+        };
+        aabb.pad_to_minimums();
+        aabb
     }
 }
 
