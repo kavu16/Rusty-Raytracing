@@ -9,17 +9,17 @@ use crate::{
 
 #[derive(Clone)]
 pub struct BVHNode {
-    left: Arc<dyn Hittable>,
-    right: Arc<dyn Hittable>,
+    left: Option<Arc<BVHNode>>,
+    right: Option<Arc<BVHNode>>,
+    object: Option<Arc<dyn Hittable>>,
     bbox: AABB,
 }
 
 impl BVHNode {
     pub fn new(objects: &mut Vec<Arc<dyn Hittable>>, start: usize, end: usize) -> Self {
-        let mut bbox = EMPTY;
-        for object in objects.iter_mut() {
-            bbox = AABB::from((bbox, object.bounding_box()));
-        }
+        let bbox = objects[start..end].iter().fold(EMPTY, |bbox, object| {
+            AABB::from((bbox, object.bounding_box()))
+        });
 
         let axis = bbox.longest_axis();
         let comparator = if axis == 0 {
@@ -33,19 +33,10 @@ impl BVHNode {
         let object_span = end - start;
         match object_span {
             1 => {
-                let (left, right) = (objects[start].clone(), objects[start].clone());
                 Self {
-                    left: left.clone(),
-                    right: right.clone(),
-                    bbox,
-                }
-            }
-            2 => {
-                let left = &objects[start];
-                let right = &objects[start + 1];
-                Self {
-                    left: left.clone(),
-                    right: right.clone(),
+                    left: None,
+                    right: None,
+                    object: Some(objects[start].clone()),
                     bbox,
                 }
             }
@@ -56,8 +47,9 @@ impl BVHNode {
                 let left = Arc::new(Self::new(objects, start, mid));
                 let right = Arc::new(Self::new(objects, mid, end));
                 Self {
-                    left: left.clone(),
-                    right: right.clone(),
+                    left: Some(left.clone()),
+                    right: Some(right.clone()),
+                    object: None,
                     bbox,
                 }
             }
@@ -81,21 +73,36 @@ impl BVHNode {
     fn box_z_compare(a: Arc<dyn Hittable>, b: Arc<dyn Hittable>) -> Ordering {
         BVHNode::box_compare(a, b, 2)
     }
+
+    pub fn depth(&self, curr_depth: usize) -> usize {
+        if let (Some(left), Some(right)) = (self.left.clone(), self.right.clone()) {
+            left.depth(curr_depth+1).max(right.depth(curr_depth + 1)) 
+        } else {
+            if let Some(_object) = &self.object {
+                println!("There's a sphere here");
+            }
+            curr_depth
+        }
+    }
 }
 
 impl Hittable for BVHNode {
     fn hit(&self, r: &Ray, ray_t: &mut Interval) -> Option<HitRecord> {
-        if !self.bbox.hit(r, ray_t) {
+        if !self.bbox.hit(r, *ray_t) {
             return None;
         }
 
-        let left_hit = self.left.hit(r, ray_t);
-        if let Some(rec) = &left_hit {
-            self.right
-                .hit(r, &mut Interval::new(ray_t.min, rec.t))
-                .or(left_hit)
+        if let (Some(left), Some(right)) = (self.left.clone(), self.right.clone()) {
+            let left_hit = left.hit(r, ray_t);
+            if let Some(rec) = &left_hit {
+                right
+                    .hit(r, &mut Interval::new(ray_t.min, rec.t))
+                    .or(left_hit)
+            } else {
+                right.hit(r, ray_t)
+            }
         } else {
-            self.right.hit(r, ray_t)
+            self.object.as_ref().unwrap().hit(r, ray_t)
         }
     }
 

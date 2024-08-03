@@ -16,6 +16,7 @@ impl AABB {
         Self { x, y, z }
     }
 
+    #[inline]
     pub fn axis_interval(&self, n: i32) -> Interval {
         if n == 1 {
             self.y
@@ -26,7 +27,7 @@ impl AABB {
         }
     }
 
-    pub fn hit(&self, r: &Ray, ray_t: &mut Interval) -> bool {
+    pub fn hit(&self, r: &Ray, mut ray_t: Interval) -> bool {
         let ray_orig = r.origin();
         let ray_dir = r.direction();
 
@@ -61,6 +62,7 @@ impl AABB {
         true
     }
 
+    #[inline]
     pub fn longest_axis(&self) -> i32 {
         if self.x.size() > self.y.size() && self.x.size() > self.z.size() {
             0

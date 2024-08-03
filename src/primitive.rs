@@ -69,8 +69,8 @@ impl Sphere {
     }
 
     fn get_sphere_uv(&self, p: Point3) -> (f64, f64) {
-        let theta = -p.y.acos();
-        let phi = -p.z.atan2(p.x) + PI;
+        let theta = (-p.y).acos();
+        let phi = (-p.z).atan2(p.x) + PI;
 
         (phi / (2.0*PI), theta / PI)
     }
@@ -103,7 +103,7 @@ impl Hittable for Sphere {
         }
         let t = root;
         let p = r.at(t);
-        let normal = (p - center).unit_vector();
+        let normal = (p - center) / self.radius;
         let front_face = r.direction().dot(&normal) < 0.0;
         let normal = if front_face { normal } else { -normal };
         let mat = self.mat.clone();
@@ -152,17 +152,13 @@ impl HittableList {
 
 impl Hittable for HittableList {
     fn hit(&self, r: &Ray, ray_t: &mut Interval) -> Option<HitRecord> {
-        let mut rec = None;
-        let mut closest = ray_t.max;
-
-        for object in self.objects.iter() {
+        self.objects.iter().fold((ray_t.max, None), |(closest, curr_rec), object| {
             if let Some(temp_rec) = object.hit(r, &mut Interval::new(ray_t.min, closest)) {
-                closest = temp_rec.t;
-                rec = Some(temp_rec);
+                (temp_rec.t, Some(temp_rec))
+            } else {
+                (closest, curr_rec)
             }
-        }
-
-        rec
+        }).1 // Returning curr_rec
     }
 
     fn bounding_box(&self) -> AABB {

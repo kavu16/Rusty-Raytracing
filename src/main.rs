@@ -5,8 +5,9 @@ use raytracing::bvh::BVHNode;
 use raytracing::camera::Camera;
 use raytracing::color::Color;
 use raytracing::material::Material;
+use raytracing::perlin::Perlin;
 use raytracing::primitive::{HittableList, Sphere};
-use raytracing::texture::{CheckerTexture, SolidColor};
+use raytracing::texture::{CheckerTexture, NoiseTexture, SolidColor};
 use raytracing::utils::{random_double, random_range};
 use raytracing::vec3::{Point3, Vec3};
 
@@ -14,7 +15,7 @@ fn bouncing_spheres() {
     // World
     let mut world = HittableList::default();
 
-    let checker = Arc::new(CheckerTexture::from((0.31, &Color::new(0.2, 0.3, 0.1), &Color::new(0.9, 0.9, 0.9))));
+    let checker = Arc::new(CheckerTexture::from((0.32, &Color::new(0.2, 0.3, 0.1), &Color::new(0.9, 0.9, 0.9))));
     world.add(Arc::new(Sphere::new(
         Point3::new(0.0, -1000.0, 0.0),
         1000.0,
@@ -90,14 +91,17 @@ fn bouncing_spheres() {
     )));
 
     // BVH seems to be slow... need to investigate
-    // let world = Arc::new(BVHNode::from(world));
-    // let world = Arc::new(HittableList::new(world));
-    let world = Arc::new(world);
+    let world = Arc::new(BVHNode::from(world));
+    let world = Arc::new(HittableList::new(world));
+    // let world = Arc::new(world);
+
+    
+
     
     let mut cam = Camera {
         aspect_ratio: 16.0 / 9.0,
         image_width: 1200,
-        samples_per_pixel: 64,
+        samples_per_pixel: 512,
         max_depth: 50,
 
         vfov: 20.0,
@@ -149,11 +153,55 @@ fn checkered_spheres() {
     cam.render(Arc::new(world))
 }
 
+fn perlin_spheres() {
+    let mut world = HittableList::default();
+
+    let pertext = Arc::new(NoiseTexture::new(4.));
+
+    world.add(Arc::new(Sphere::new(
+        Point3::new(0.0, -1000.0, 0.0), 
+        1000.0, 
+        Arc::new(Material::Lambertian { tex: pertext.clone() }),
+    )));
+
+    world.add(Arc::new(Sphere::new(
+        Point3::new(0.0, 2.0, 0.0), 
+        2.0, 
+        Arc::new(Material::Lambertian { tex: pertext.clone() }),
+    )));
+
+    let mut cam = Camera {
+        aspect_ratio: 16.0 / 9.0,
+        image_width: 400,
+        samples_per_pixel: 100,
+        max_depth: 50,
+
+        vfov: 20.0,
+        lookfrom: Point3::new(13.0, 2.0, 3.0),
+        lookat: Point3::new(0.0, 0.0, 0.0),
+        vup: Vec3::new(0.0, 1.0, 0.0),
+
+        defocus_angle: 0.0,
+        ..Camera::default()
+    };
+
+    cam.render(Arc::new(world))
+}
+
 fn main() {
-    let scene = 1;
-    match scene {
-        0 => bouncing_spheres(),
-        1 => checkered_spheres(),
-        _ => (),
+    let mut scene = String::new();
+    eprintln!("Input scene index: ");
+    eprintln!("-- 0. Bouncing Spheres");
+    eprintln!("-- 1. Checkered Spheres");
+    eprintln!("-- 2. Perlin Spheres");
+    std::io::stdin().read_line(&mut scene).expect("Invalid input");
+    scene.pop();
+    match scene.parse::<i32>() {
+        Ok(0) => bouncing_spheres(),
+        Ok(1) => checkered_spheres(),
+        Ok(2) => perlin_spheres(),
+        _ => {
+            eprintln!("Invalid Scene index: {scene}");
+        }
     }
 }

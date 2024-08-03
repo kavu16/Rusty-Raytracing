@@ -9,14 +9,17 @@ impl Interval {
         Self { min, max }
     }
 
+    #[inline]
     pub fn size(&self) -> f64 {
         self.max - self.min
     }
 
+    #[inline]
     pub fn contains(&self, x: f64) -> bool {
         self.min <= x && x <= self.max
     }
 
+    #[inline]
     pub fn surrounds(&self, x: f64) -> bool {
         self.min < x && x < self.max
     }

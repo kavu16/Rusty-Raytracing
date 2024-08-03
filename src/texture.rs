@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use crate::{color::Color, vec3::Point3};
+use crate::{color::Color, perlin::Perlin, vec3::Point3};
 
-pub trait Texture: Send + Sync {
+pub trait Texture {
     fn value(&self, u: f64, v: f64, p: &Point3) -> Color;
 }
 
@@ -59,9 +59,9 @@ impl From<(f64, &Color, &Color)> for CheckerTexture {
 
 impl Texture for CheckerTexture {
     fn value(&self, u: f64, v: f64, p: &Point3) -> Color {
-        let x_integer = (self.inv_scale * p.x) as i32;
-        let y_integer = (self.inv_scale * p.y) as i32;
-        let z_integer = (self.inv_scale * p.z) as i32;
+        let x_integer = (self.inv_scale * p.x).floor() as i32;
+        let y_integer = (self.inv_scale * p.y).floor() as i32;
+        let z_integer = (self.inv_scale * p.z).floor() as i32;
 
         if (x_integer + y_integer + z_integer) % 2 == 0 {
             self.even.value(u, v, p)
@@ -73,3 +73,26 @@ impl Texture for CheckerTexture {
 
 unsafe impl Send for CheckerTexture {}
 unsafe impl Sync for CheckerTexture {}
+
+pub struct NoiseTexture {
+    noise: Perlin,
+    scale: f64,
+}
+
+impl NoiseTexture {
+    pub fn new(scale: f64) -> Self {
+        Self {
+            noise: Perlin::new(),
+            scale,
+        }
+    }
+}
+
+impl Texture for NoiseTexture {
+    fn value(&self, _u: f64, _v: f64, p: &Point3) -> Color {
+        Color::new(0.5, 0.5, 0.5) * (1.0 + (self.scale * p.z + 10.0 * self.noise.turb(*p, 7)).sin()) 
+    }
+}
+
+unsafe impl Send for NoiseTexture {}
+unsafe impl Sync for NoiseTexture {}

@@ -121,7 +121,7 @@ impl Camera {
     pub fn render(&mut self, world: Arc<HittableList>) {
         self.initialize();
 
-        //Render
+        // Render
         println!("P3\n{} {}\n255\n", self.image_width, self.image_height);
         for j in 0..self.image_height {
             eprint!("\rScanlines remaining: {}    ", self.image_height - j);
