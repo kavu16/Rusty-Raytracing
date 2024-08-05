@@ -55,7 +55,7 @@ impl Camera {
             }
             return color_from_emission;
         }
-        return self.background;
+        self.background
     }
 
     fn initialize(&mut self) {

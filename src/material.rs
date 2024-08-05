@@ -15,6 +15,7 @@ pub enum Material {
     Metal { albedo: Color, fuzz: f64 },
     Dielectric { refraction_index: f64 },
     DiffuseLight { tex: Arc<dyn Texture> },
+    Isotropic { tex: Arc<dyn Texture> },
 }
 
 impl Material {
@@ -68,6 +69,12 @@ impl Material {
                 };
 
                 Some((Ray::new(rec.p, direction, r_in.time()), attenuation))
+            }
+            Self::Isotropic { tex } => {
+                let scattered = Ray::new(rec.p, Vec3::random_unit_vector(), r_in.time());
+                let attenuation = tex.value(rec.u, rec.v, &rec.p);
+                
+                Some((scattered, attenuation))
             }
             _ => None,
         }

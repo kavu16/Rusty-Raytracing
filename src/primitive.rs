@@ -1,13 +1,13 @@
 use std::f64::consts::PI;
-use std::f64::{INFINITY, NEG_INFINITY};
 // use std::rc::Rc;
 use std::sync::Arc;
 
 use crate::aabb::AABB;
-use crate::interval::Interval;
+use crate::interval::{Interval, UNIVERSE};
 use crate::material::Material;
 use crate::ray::Ray;
-use crate::utils::degrees_to_radians;
+use crate::texture::Texture;
+use crate::utils::{degrees_to_radians, random_double};
 use crate::vec3::*;
 
 #[derive(Clone)]
@@ -362,8 +362,8 @@ impl RotateY {
         let cos_theta = radians.cos();
         let bbox = object.clone().bounding_box();
 
-        let mut min = Point3::new(INFINITY, INFINITY, INFINITY);
-        let mut max = Point3::new(NEG_INFINITY, NEG_INFINITY, NEG_INFINITY);
+        let mut min = Point3::new(f64::INFINITY, f64::INFINITY, f64::INFINITY);
+        let mut max = Point3::new(f64::NEG_INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY);
 
         for i in 0..2 {
             for j in 0..2 {
@@ -430,3 +430,68 @@ impl Hittable for RotateY {
         self.bbox
     }
 }
+
+unsafe impl Send for RotateY {}
+unsafe impl Sync for RotateY {}
+
+pub struct ConstantMedium {
+    boundary: Arc<dyn Hittable>,
+    neg_inv_density: f64,
+    phase_function: Arc<Material>,
+}
+
+impl ConstantMedium {
+    pub fn new(boundary: Arc<dyn Hittable>, density: f64, tex: Arc<dyn Texture>) -> Self {
+        Self {
+            boundary,
+            neg_inv_density: -1.0 / density,
+            phase_function: Arc::new(Material::Isotropic { tex }),
+        }
+    }
+}
+
+impl Hittable for ConstantMedium {
+    fn hit(&self, r: &Ray, ray_t: &mut Interval) -> Option<HitRecord> {
+        if let Some(mut rec1) = self.boundary.hit(r, &mut UNIVERSE) {
+            if let Some(mut rec2) = self.boundary.hit(r, &mut Interval::new(rec1.t + 0.0001, f64::INFINITY)) {
+                if rec1.t < ray_t.min { rec1.t = ray_t.min; }
+                if rec2.t > ray_t.max { rec2.t = ray_t.max; }
+
+                if rec1.t >= rec2.t { return None; }
+
+                if rec1.t < 0.0 { rec1.t = 0.0; }
+
+                let ray_length = r.direction().length();
+                let distance_inside_boundary = (rec2.t - rec1.t) * ray_length;
+                let hit_distance = self.neg_inv_density * random_double().ln();
+
+                if hit_distance > distance_inside_boundary { return None; }
+
+                let t = rec1.t + hit_distance / ray_length;
+                let p = r.at(t);
+                let normal = Vec3::new(1.0, 0.0, 0.0);
+                let front_face = true;
+                let mat = self.phase_function.clone();
+
+                return Some(HitRecord {
+                    p,
+                    normal,
+                    mat,
+                    t,
+                    u: rec2.u,
+                    v: rec2.v,
+                    front_face
+                });
+            }
+        }
+        
+        None
+    }
+
+    fn bounding_box(&self) -> AABB {
+        self.boundary.bounding_box()
+    }
+}
+
+unsafe impl Send for ConstantMedium {}
+unsafe impl Sync for ConstantMedium {}

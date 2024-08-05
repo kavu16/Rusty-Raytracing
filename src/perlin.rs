@@ -38,12 +38,12 @@ impl Perlin {
 
         let mut c = [[[Vec3::default(); 2]; 2]; 2];
 
-        for di in 0..2 {
-            for dj in 0..2 {
-                for dk in 0..2 {
-                    c[di][dj][dk] = self.randvec[self.perm_x[((i + di as i32) & 255) as usize]
-                        ^ self.perm_y[((j + dj as i32) & 255) as usize]
-                        ^ self.perm_z[((k + dk as i32) & 255) as usize]];
+        for (di, x) in c.iter_mut().enumerate() {
+            for (dj, y) in x.iter_mut().enumerate() {
+                for (dk, z) in y.iter_mut().enumerate() {
+                    *z = self.randvec[self.perm_x[((i + di as i32) & 255) as usize]
+                    ^ self.perm_y[((j + dj as i32) & 255) as usize]
+                    ^ self.perm_z[((k + dk as i32) & 255) as usize]];
                 }
             }
         }
@@ -56,7 +56,6 @@ impl Perlin {
         let mut weight = 1.0;
 
         (0..depth)
-            .into_iter()
             .fold(0.0, |acc, _d| {
                 let acc = acc + weight * self.noise(temp_p);
                 weight *= 0.5;
@@ -77,12 +76,10 @@ impl Perlin {
         p
     }
 
-    fn permute(p: &mut Vec<usize>, n: usize) {
+    fn permute(p: &mut [usize], n: usize) {
         for i in (0..n).rev() {
             let target = random_int(0, i as i32) as usize;
-            let tmp = p[i];
-            p[i] = p[target];
-            p[target] = tmp;
+            p.swap(i, target);
         }
     }
 
@@ -92,19 +89,25 @@ impl Perlin {
         let ww = w * w * (3. - 2. * w);
         let mut accum = 0.0;
 
-        for i in 0..2 {
-            for j in 0..2 {
-                for k in 0..2 {
+        for (i, x) in c.iter().enumerate() {
+            for (j, y) in x.iter().enumerate() {
+                for (k, z) in y.iter().enumerate() {
                     let weight_v = Vec3::new(u - i as f64, v - j as f64, w - k as f64);
                     accum += (i as f64 * uu + (1. - i as f64) * (1. - uu))
                         * (j as f64 * vv + (1. - j as f64) * (1. - vv))
                         * (k as f64 * ww + (1. - k as f64) * (1. - ww))
-                        * c[i][j][k].dot(&weight_v);
+                        * z.dot(&weight_v);
                 }
             }
         }
 
         accum
+    }
+}
+
+impl Default for Perlin {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
