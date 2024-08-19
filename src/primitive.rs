@@ -1,4 +1,5 @@
 use std::f64::consts::PI;
+use std::fmt::Debug;
 // use std::rc::Rc;
 use std::sync::Arc;
 
@@ -10,7 +11,7 @@ use crate::texture::Texture;
 use crate::utils::{degrees_to_radians, random_double};
 use crate::vec3::*;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct HitRecord {
     pub p: Point3,
     pub normal: Vec3,
@@ -21,11 +22,12 @@ pub struct HitRecord {
     pub front_face: bool,
 }
 
-pub trait Hittable {
+pub trait Hittable: Debug {
     fn hit(&self, r: &Ray, ray_t: &mut Interval) -> Option<HitRecord>;
     fn bounding_box(&self) -> AABB;
 }
 
+#[derive(Clone, Debug)]
 pub struct Sphere {
     center1: Point3,
     radius: f64,
@@ -129,7 +131,7 @@ impl Hittable for Sphere {
 unsafe impl Send for Sphere {}
 unsafe impl Sync for Sphere {}
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct HittableList {
     pub objects: Vec<Arc<dyn Hittable>>,
     bbox: AABB,
@@ -149,6 +151,7 @@ impl HittableList {
 
     pub fn clear(&mut self) {
         self.objects.clear();
+        self.bbox = AABB::default();
     }
 }
 
@@ -174,6 +177,7 @@ impl Hittable for HittableList {
 unsafe impl Send for HittableList {}
 unsafe impl Sync for HittableList {}
 
+#[derive(Debug, Clone, Copy)]
 pub enum Shape {
     Quad,
     Triangle,
@@ -183,6 +187,7 @@ pub enum Shape {
 unsafe impl Send for Shape {}
 unsafe impl Sync for Shape {}
 
+#[derive(Debug, Clone)]
 pub struct Planar {
     q: Point3,
     u: Vec3,
@@ -300,16 +305,53 @@ pub fn build_box(a: Point3, b: Point3, mat: Arc<Material>) -> Arc<HittableList> 
     let dy = Vec3::new(0.0, max.y - min.y, 0.0);
     let dz = Vec3::new(0.0, 0.0, max.z - min.z);
 
-    sides.add(Arc::new(Planar::new(Point3::new(min.x, min.y, max.z), dx, dy, mat.clone(), Shape::Quad)));    
-    sides.add(Arc::new(Planar::new(Point3::new(max.x, min.y, max.z), -dz, dy, mat.clone(), Shape::Quad)));    
-    sides.add(Arc::new(Planar::new(Point3::new(max.x, min.y, min.z), -dx, dy, mat.clone(), Shape::Quad)));    
-    sides.add(Arc::new(Planar::new(Point3::new(min.x, min.y, min.z), dz, dy, mat.clone(), Shape::Quad)));    
-    sides.add(Arc::new(Planar::new(Point3::new(min.x, max.y, max.z), dx, -dz, mat.clone(), Shape::Quad)));    
-    sides.add(Arc::new(Planar::new(Point3::new(min.x, min.y, min.z), dx, dz, mat.clone(), Shape::Quad))); 
+    sides.add(Arc::new(Planar::new(
+        Point3::new(min.x, min.y, max.z),
+        dx,
+        dy,
+        mat.clone(),
+        Shape::Quad,
+    )));
+    sides.add(Arc::new(Planar::new(
+        Point3::new(max.x, min.y, max.z),
+        -dz,
+        dy,
+        mat.clone(),
+        Shape::Quad,
+    )));
+    sides.add(Arc::new(Planar::new(
+        Point3::new(max.x, min.y, min.z),
+        -dx,
+        dy,
+        mat.clone(),
+        Shape::Quad,
+    )));
+    sides.add(Arc::new(Planar::new(
+        Point3::new(min.x, min.y, min.z),
+        dz,
+        dy,
+        mat.clone(),
+        Shape::Quad,
+    )));
+    sides.add(Arc::new(Planar::new(
+        Point3::new(min.x, max.y, max.z),
+        dx,
+        -dz,
+        mat.clone(),
+        Shape::Quad,
+    )));
+    sides.add(Arc::new(Planar::new(
+        Point3::new(min.x, min.y, min.z),
+        dx,
+        dz,
+        mat.clone(),
+        Shape::Quad,
+    )));
 
-    Arc::new(sides)   
+    Arc::new(sides)
 }
 
+#[derive(Debug, Clone)]
 pub struct Translate {
     object: Arc<dyn Hittable>,
     offset: Vec3,
@@ -348,6 +390,7 @@ impl Hittable for Translate {
 unsafe impl Send for Translate {}
 unsafe impl Sync for Translate {}
 
+#[derive(Debug, Clone)]
 pub struct RotateY {
     object: Arc<dyn Hittable>,
     sin_theta: f64,
@@ -416,11 +459,7 @@ impl Hittable for RotateY {
             normal[0] = self.cos_theta * rec.normal[0] + self.sin_theta * rec.normal[2];
             normal[2] = -self.sin_theta * rec.normal[0] + self.cos_theta * rec.normal[2];
 
-            return Some(HitRecord {
-                p,
-                normal,
-                ..rec
-            });
+            return Some(HitRecord { p, normal, ..rec });
         }
 
         None
@@ -434,6 +473,7 @@ impl Hittable for RotateY {
 unsafe impl Send for RotateY {}
 unsafe impl Sync for RotateY {}
 
+#[derive(Debug, Clone)]
 pub struct ConstantMedium {
     boundary: Arc<dyn Hittable>,
     neg_inv_density: f64,
@@ -453,19 +493,32 @@ impl ConstantMedium {
 impl Hittable for ConstantMedium {
     fn hit(&self, r: &Ray, ray_t: &mut Interval) -> Option<HitRecord> {
         if let Some(mut rec1) = self.boundary.hit(r, &mut UNIVERSE) {
-            if let Some(mut rec2) = self.boundary.hit(r, &mut Interval::new(rec1.t + 0.0001, f64::INFINITY)) {
-                if rec1.t < ray_t.min { rec1.t = ray_t.min; }
-                if rec2.t > ray_t.max { rec2.t = ray_t.max; }
+            if let Some(mut rec2) = self
+                .boundary
+                .hit(r, &mut Interval::new(rec1.t + 0.0001, f64::INFINITY))
+            {
+                if rec1.t < ray_t.min {
+                    rec1.t = ray_t.min;
+                }
+                if rec2.t > ray_t.max {
+                    rec2.t = ray_t.max;
+                }
 
-                if rec1.t >= rec2.t { return None; }
+                if rec1.t >= rec2.t {
+                    return None;
+                }
 
-                if rec1.t < 0.0 { rec1.t = 0.0; }
+                if rec1.t < 0.0 {
+                    rec1.t = 0.0;
+                }
 
                 let ray_length = r.direction().length();
                 let distance_inside_boundary = (rec2.t - rec1.t) * ray_length;
                 let hit_distance = self.neg_inv_density * random_double().ln();
 
-                if hit_distance > distance_inside_boundary { return None; }
+                if hit_distance > distance_inside_boundary {
+                    return None;
+                }
 
                 let t = rec1.t + hit_distance / ray_length;
                 let p = r.at(t);
@@ -480,11 +533,11 @@ impl Hittable for ConstantMedium {
                     t,
                     u: rec2.u,
                     v: rec2.v,
-                    front_face
+                    front_face,
                 });
             }
         }
-        
+
         None
     }
 

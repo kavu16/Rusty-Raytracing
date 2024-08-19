@@ -1,4 +1,10 @@
-use std::{sync::{atomic::{AtomicUsize, Ordering}, Arc, Mutex}, time};
+use std::{
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc, Mutex,
+    },
+    time,
+};
 
 // use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rayon::prelude::*;
@@ -121,17 +127,26 @@ impl Camera {
     pub fn render(&mut self, world: Arc<HittableList>) {
         self.initialize();
 
-        let image = Arc::new(Mutex::new(vec![vec![Color::default(); self.image_width as usize]; self.image_height as usize]));
+        let image = Arc::new(Mutex::new(vec![
+            vec![
+                Color::default();
+                self.image_width as usize
+            ];
+            self.image_height as usize
+        ]));
 
         let scanlines = AtomicUsize::new(self.image_height as usize);
 
         let t1 = time::Instant::now();
         (0..self.image_height).into_par_iter().for_each(|j| {
-            eprint!("\rScanlines remaining: {}       ", scanlines.fetch_sub(1, Ordering::Relaxed));
+            eprint!(
+                "\rScanlines remaining: {}       ",
+                scanlines.fetch_sub(1, Ordering::Relaxed)
+            );
             for i in 0..self.image_width {
                 let pixel_color = (0..self.samples_per_pixel)
                     .map(|_s| {
-                        Camera::ray_color(&self, self.get_ray(i, j), self.max_depth, world.clone())
+                        Camera::ray_color(self, self.get_ray(i, j), self.max_depth, world.clone())
                     })
                     .sum::<Color>();
 
@@ -140,11 +155,15 @@ impl Camera {
             }
         });
 
-        let image = image.lock().expect("Poisoned");
+        let image = Arc::into_inner(image)
+            .expect("Ref count too high")
+            .into_inner()
+            .expect("Poisoned");
+
         println!("P3\n{} {}\n255\n", self.image_width, self.image_height);
-        for i in 0..self.image_height as usize {
-            for j in 0..self.image_width as usize {
-                Color::write_color(self.pixel_samples_scale * image[i][j]);
+        for row in image.iter().take(self.image_height as usize) {
+            for &pixel in row.iter().take(self.image_width as usize) {
+                Color::write_color(self.pixel_samples_scale * pixel);
             }
         }
 
@@ -166,7 +185,10 @@ impl Camera {
 
         let t2 = time::Instant::now();
         let duration = t2 - t1;
-        eprint!("\rDone in {} secs.                   \n", duration.as_secs());
+        eprint!(
+            "\rDone in {} secs.                   \n",
+            duration.as_secs()
+        );
     }
 }
 

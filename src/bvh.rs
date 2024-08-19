@@ -7,7 +7,7 @@ use crate::{
     ray::Ray,
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BVHNode {
     left: Option<Arc<BVHNode>>,
     right: Option<Arc<BVHNode>>,
@@ -110,8 +110,9 @@ impl Hittable for BVHNode {
 }
 
 impl From<HittableList> for BVHNode {
-    fn from(list: HittableList) -> Self {
-        Self::new(&mut list.clone().objects, 0, list.objects.len())
+    fn from(mut list: HittableList) -> Self {
+        let end = list.objects.len();
+        Self::new(&mut list.objects, 0, end)
     }
 }
 

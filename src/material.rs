@@ -9,7 +9,7 @@ use crate::{
     vec3::{Point3, Vec3},
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Material {
     Lambertian { tex: Arc<dyn Texture> },
     Metal { albedo: Color, fuzz: f64 },
@@ -73,7 +73,7 @@ impl Material {
             Self::Isotropic { tex } => {
                 let scattered = Ray::new(rec.p, Vec3::random_unit_vector(), r_in.time());
                 let attenuation = tex.value(rec.u, rec.v, &rec.p);
-                
+
                 Some((scattered, attenuation))
             }
             _ => None,

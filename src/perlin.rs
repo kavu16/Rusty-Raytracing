@@ -3,7 +3,7 @@ use crate::{
     vec3::{Point3, Vec3},
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Perlin {
     randvec: Vec<Vec3>,
     perm_x: Vec<usize>,
@@ -42,8 +42,8 @@ impl Perlin {
             for (dj, y) in x.iter_mut().enumerate() {
                 for (dk, z) in y.iter_mut().enumerate() {
                     *z = self.randvec[self.perm_x[((i + di as i32) & 255) as usize]
-                    ^ self.perm_y[((j + dj as i32) & 255) as usize]
-                    ^ self.perm_z[((k + dk as i32) & 255) as usize]];
+                        ^ self.perm_y[((j + dj as i32) & 255) as usize]
+                        ^ self.perm_z[((k + dk as i32) & 255) as usize]];
                 }
             }
         }

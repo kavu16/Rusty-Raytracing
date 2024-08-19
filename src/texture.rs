@@ -1,8 +1,8 @@
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
 
 use crate::{color::Color, perlin::Perlin, vec3::Point3};
 
-pub trait Texture {
+pub trait Texture: Debug {
     fn value(&self, u: f64, v: f64, p: &Point3) -> Color;
 }
 
@@ -32,7 +32,7 @@ impl Texture for SolidColor {
 unsafe impl Send for SolidColor {}
 unsafe impl Sync for SolidColor {}
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct CheckerTexture {
     inv_scale: f64,
     even: Arc<dyn Texture>,
@@ -76,6 +76,7 @@ impl Texture for CheckerTexture {
 unsafe impl Send for CheckerTexture {}
 unsafe impl Sync for CheckerTexture {}
 
+#[derive(Debug, Clone)]
 pub struct NoiseTexture {
     noise: Perlin,
     scale: f64,

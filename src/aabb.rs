@@ -3,10 +3,10 @@ use std::ops::Add;
 use crate::{
     interval::{Interval, EMPTY as IEmpty, UNIVERSE as IUniverse},
     ray::Ray,
-    vec3::{Vec3, Point3},
+    vec3::{Point3, Vec3},
 };
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, Debug)]
 pub struct AABB {
     pub x: Interval,
     pub y: Interval,
